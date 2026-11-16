@@ -18,7 +18,7 @@ SYSTEM = (
 )
 PRO_EXTRA = " Give a more detailed answer with an example and a short summary at the end."
 
-st.set_page_config(page_title="Prachi AI", page_icon="🎓", layout="centered")
+st.set_page_config(page_title="Prachi AI", page_icon="🎓", layout="centered", initial_sidebar_state="expanded")
 
 
 # ---------- Helpers ----------
@@ -71,41 +71,41 @@ if "up_key" not in st.session_state:
 
 # ---------- Sidebar ----------
 with st.sidebar:
-    st.header("👤 Tumhara account")
-    name = st.text_input("Apna naam likho", placeholder="e.g. Prachi")
+    st.header("👤 Your account")
+    name = st.text_input("Enter your name", placeholder="e.g. Prachi")
     user = name.strip().lower()
 
     pro_code = st.secrets.get("PRO_CODE", "")
     if pro_code:
         with st.expander("⭐ Pro code"):
-            code = st.text_input("Code daalo", type="password")
-            if st.button("Pro chalu karo"):
+            code = st.text_input("Enter code", type="password")
+            if st.button("Activate Pro"):
                 if code == pro_code:
                     st.session_state.pro = True
-                    st.success("Pro chalu ho gaya! ⭐")
+                    st.success("Pro activated! ⭐")
                 else:
-                    st.error("Code galat hai.")
+                    st.error("Wrong code.")
 
     limit = PRO_LIMIT if st.session_state.pro else FREE_LIMIT
     st.write("Plan: **" + ("⭐ Pro" if st.session_state.pro else "Free") + "**")
     if user:
         left = max(0, limit - used_by(user))
-        st.write(f"Aaj bache sawal: **{left}/{limit}**")
+        st.write(f"Questions left today: **{left}/{limit}**")
 
     if st.session_state.messages:
         st.download_button(
-            "💾 Chat download karo",
+            "💾 Download chat",
             data=chat_as_text(st.session_state.messages),
             file_name="prachi-ai-chat.txt",
             mime="text/plain",
         )
-        if st.button("🗑️ Nayi chat"):
+        if st.button("🗑️ New chat"):
             st.session_state.messages = []
             st.rerun()
 
 # ---------- Main ----------
 st.title("🎓 Prachi AI")
-st.caption("Tumhara Multilingual AI Study Assistant: English, हिंदी, मराठी")
+st.caption("Your multilingual AI study assistant: English, हिंदी, मराठी")
 
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
@@ -113,9 +113,9 @@ for m in st.session_state.messages:
             st.caption(f"📎 {m['file']}")
         st.markdown(m["content"])
 
-with st.expander("📎 Photo ya file add karo (PNG, JPG, PDF, TXT)"):
+with st.expander("📎 Add a photo or file (PNG, JPG, PDF, TXT)"):
     up = st.file_uploader(
-        "File chuno",
+        "Choose a file",
         type=["png", "jpg", "jpeg", "pdf", "txt"],
         key=f"up_{st.session_state.up_key}",
         label_visibility="collapsed",
@@ -123,20 +123,20 @@ with st.expander("📎 Photo ya file add karo (PNG, JPG, PDF, TXT)"):
     if up is not None and up.type.startswith("image"):
         st.image(up, width=220)
 
-prompt = st.chat_input("Apna sawal likho...")
+prompt = st.chat_input("Ask your question...")
 
 if prompt:
     if not user:
-        st.warning("Pehle left side (sidebar) mein apna naam likho. 👈")
+        st.warning("Please enter your name in the sidebar first. 👈")
         st.stop()
     if used_by(user) >= limit:
-        st.warning(f"Aaj ke {limit} sawal poore ho gaye. Kal phir aana! 😊")
+        st.warning(f"You have used all {limit} questions for today. Please come back tomorrow! 😊")
         st.stop()
     if used_total() >= GLOBAL_LIMIT:
-        st.warning("Aaj app par bahut zyada use ho gaya hai. Kal phir try karo. 🙏")
+        st.warning("The app has reached its daily limit. Please try again tomorrow. 🙏")
         st.stop()
     if up is not None and up.size > MAX_FILE_MB * 1024 * 1024:
-        st.warning(f"File {MAX_FILE_MB} MB se chhoti honi chahiye.")
+        st.warning(f"File must be smaller than {MAX_FILE_MB} MB.")
         st.stop()
 
     file_name = up.name if up is not None else None
@@ -167,17 +167,17 @@ if prompt:
 
     system = SYSTEM + (PRO_EXTRA if st.session_state.pro else "")
     with st.chat_message("assistant"):
-        with st.spinner("Soch rahi hu..."):
+        with st.spinner("Thinking..."):
             try:
                 resp = get_client().models.generate_content(
                     model=MODEL,
                     contents=contents,
                     config=types.GenerateContentConfig(system_instruction=system),
                 )
-                answer = resp.text or "Mujhe iska jawab nahi mila. Dobara try karo."
+                answer = resp.text or "I could not find an answer. Please try again."
                 add_use(user)
             except Exception:
-                answer = "Kuch gadbad ho gayi. Thodi der baad dobara try karo. 🙏"
+                answer = "Something went wrong. Please try again in a little while. 🙏"
         st.markdown(answer)
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
